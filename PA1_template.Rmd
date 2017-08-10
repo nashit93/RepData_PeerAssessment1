@@ -1,25 +1,219 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "ActivityMonitor"
+author: "Nashit"
+date: "8/10/2017"
+output: html_document
 ---
+############################
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=1, digits=2)
+```
+
+### Activity Monitoring
+
+This is an R Markdown document used for computing the course project 1 of Reproducable Research module of Data Science on coursera.
 
 ## Loading and preprocessing the data
+#### This code chunk loads the data and Transforms the dates
+
+```{r Activity_Monitor}
+filename <- "repdata%2Fdata%2Factivity.zip"
+
+## Download and unzip the dataset:
+filename <- "repdata%2Fdata%2Factivity.zip"
+if (!file.exists(filename)){
+  fileURL <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+  download.file(fileURL, filename, method="curl")
+}  
+if (!file.exists("activity.csv")) { 
+  unzip(filename) 
+}
+
+raw_activity <- read.csv("activity.csv")
+
+date_format <- factor(raw_activity$date)
+
+raw_activity$date <- as.Date(date_format, format = "%Y-%m-%d")
+
+raw_activity$steps[is.na(raw_activity$steps)] <- 0 
+
+```
+## Mean total number of steps taken
+
+#### This code chunk computes the total number of steps taken each day
+
+``` {r steps}
+
+steps_per_day <- aggregate(raw_activity$steps, by=list(dates=raw_activity$date), FUN=sum)
+
+print(steps_per_day)
+
+```
+
+
+#### This code chunk produces the histogram of Steps Per Day
+``` {r hist_steps}
+
+
+hist(steps_per_day$x,main = "Histogram Of Steps Per Day",xlab = "Steps Per Day")
+
+
+```
+
+#### This code chunk produces the mean and median of the total number of steps taken per day
+
+``` {r steps_mean}
+
+summary(steps_per_day$x)
+steps_mean<- mean(steps_per_day$x)
+steps_median <- median(steps_per_day$x)
+
+# Mean
+print(steps_mean)
+
+#Median
+print(steps_median)
+
+```
 
 
 
-## What is mean total number of steps taken per day?
+
+The mean  of the total number of steps taken per day is **`r steps_mean`**
+
+The median  of the total number of steps taken per day is **`r steps_median`**
 
 
+## Average daily activity pattern
 
-## What is the average daily activity pattern?
+#### This code chunk produces a time series plot
+``` {r time_series}
+
+avg_steps_per_interval <- aggregate(raw_activity$steps ~ raw_activity$interval, raw_activity, mean)
+plot(avg_steps_per_interval$`raw_activity$interval`,avg_steps_per_interval$`raw_activity$steps`, type='l', col=1, main="Average number of steps per interval", xlab="Time Intervals", ylab="Average number of steps")
+
+```
 
 
+#### maximum number of steps in 5 min interval
+``` {r max_steps}
+
+
+max_steps_row <- which.max(avg_steps_per_interval$`raw_activity$steps`)
+
+avg_steps_per_interval[max_steps_row,]
+
+
+```
 
 ## Imputing missing values
 
+#### Total Number Of Missing Values
+```{r missing_count}
+
+# re - initialising the data
+library(dplyr)
+raw_activity <- read.csv("activity.csv")
+
+date_format <- factor(raw_activity$date)
+
+raw_activity$date <- as.Date(date_format, format = "%Y-%m-%d")
+
+sum(is.na(raw_activity$steps))
 
 
-## Are there differences in activity patterns between weekdays and weekends?
+```
+
+The number of NA values in given dataset is **`r sum(is.na(raw_activity$steps))`**
+
+
+
+
+
+#### Filling up the missing values
+
+```{r refill_nas}
+
+new_steps <- raw_activity$steps
+
+new_steps[is.na(new_steps)] <- mean(new_steps[!is.na(new_steps)])
+
+```
+
+
+#### Creating the new Dataset
+```{r refined_activity  }
+refined_activity <- raw_activity
+refined_activity$steps <- new_steps
+
+refined_steps_per_day <- aggregate(refined_activity$steps, by=list(dates=refined_activity$date), FUN=sum)
+
+
+
+### Histogram With no NA Values
+
+hist(refined_steps_per_day$x,main = "Histogram Of Steps Per Day Without NA Values",xlab = "Steps Per Day")
+
+
+summary(refined_steps_per_day$x)
+redefined_steps_mean<- mean(refined_steps_per_day$x)
+redefined_steps_median <- median(refined_steps_per_day$x)
+
+
+```
+
+
+The mean with NAs values in data was **`r steps_mean`** while the new mean is **`r redefined_steps_mean`**
+
+
+The median with NAs values in data was **`r steps_median`** while the new median is **`r redefined_steps_median`**
+
+
+
+## patterns between weekdays and weekends
+
+
+#### new factor variable in the dataset with two levels
+
+```{r refined_activity_days  }
+
+refined_activity['day'] <- weekdays(refined_activity$date)
+
+refined_activity$day[refined_activity$day %in% c('Saturday','Sunday')]<-"weekend"
+refined_activity$day[refined_activity$day != "weekend"]<-"weekday"
+
+refined_activity$day <- as.factor(refined_activity$day)
+
+
+
+
+
+```
+
+
+
+#### PLotting the TimeSeries
+
+```{r yaya}
+
+
+
+new_avg_steps_per_interval <- aggregate(steps ~ interval + day, data=refined_activity, mean)
+
+
+
+library(ggplot2)
+
+ggplot(new_avg_steps_per_interval, aes(interval, steps)) + 
+  geom_line() + 
+  facet_grid(day ~ .) +
+  xlab("Time Intervals") + 
+  ylab("Average number of steps")
+
+
+
+
+```
+
